@@ -70,4 +70,6 @@ useNewState() {
 }
 ```
 # Notes
-It can be handy to override the storage key's basename rather than dealing with clearing keys every run.  I haven't provided any support for deleting keys out of AsyncStorage (yet).  Test things out by killing your app and restarting it, you should automagically resume from the prior state.  And **that's** what I meant by `transparent` :simple_smile:
+It can be handy to override the storage key's basename rather than dealing with clearing keys every run.  I haven't provided any support for deleting keys out of AsyncStorage (yet).  Test things out by killing your app and restarting it, you should automagically resume from the prior state.  
+
+Once the setup is handled, the remainder is just simple calls to `this.setState()`.  And **that's** what I meant by `transparent`!
