@@ -12,6 +12,23 @@ export default StoredComponentMixin = (superclass) => class extends superclass {
     this.keyList = [];
   }
 
+  async reset(list) {
+    if (!list) {
+      list = await this.get(this.keyListKey) || [];
+    }
+
+    console.log("Resetting Storage for: ", list);
+    var queue = [];
+    list.forEach((key) => {
+      queue.push(AsyncStorage.removeItem(this.keyPrefix + key), (error)=>{ console.log("reset error", error); });
+    });
+
+    key = this.keyListKey;
+    queue.push(AsyncStorage.removeItem(key));
+
+    await Promise.all(queue);
+  }
+
   /* Use addKey if a storage backed state is needed but it's not practical to provide
      a default to restore() for it.  Case in point, dynamically allocated objects only
      known at run-time.  Once in the keyList, these objects will be stored just like 
@@ -30,69 +47,57 @@ export default StoredComponentMixin = (superclass) => class extends superclass {
      be added the next time restore() is executed on that Component.
   */
   async restore(defaults) {
-    // Get the list of all stored keys
+    console.log("restore", defaults);
     this.keyList = await this.get(this.keyListKey) || [];
     var queue = [];
+    var newState = {};
+    var keysUpdated = false;
 
-    // Pull back the values of all stored objects
-    var restoredObj = {};
-    var restoredQueue = [];
-    this.keyList.forEach( (key, index) => {
-      delete defaults[key];  // don't take default of a restored value
-      restoredQueue.push(
-        this.get(this.keyPrefix + key)
-          .then((value)=>{
-            restoredObj[key] = value;
-          })
-      );
-    });
+    var restoreFromDefault = async function(that, key, def) {
+      that.keyList.push(key);
+      keysUpdated = true;
 
-    // Do a React-only setState on all restored values, they're already in storage
-    if (restoredQueue.length > 0) {
-      queue = [
-        Promise.all(restoredQueue)
-          .then(()=>{
-            console.log("restore retrieves state for: ", Object.keys(restoredObj));
-            super.setState(restoredObj);
-          })
-      ]
+      if (typeof def === 'function') {
+        return def()
+          .then((value) => {
+            queue.push(that.put(that.keyPrefix + key, value));
+            newState[key] = value;
+          });
+      } else {
+        queue.push(that.put(that.keyPrefix + key, def));
+        newState[key] = def;
+      }
+    };
+
+    var restoreFromStorage = async function(that, key, def) {
+      return that.get(that.keyPrefix + key)
+        .then((value)=>{
+          if (value === null)
+            return restoreFromDefault(that, key, def);
+
+          newState[key] = value;
+        });
     }
 
-    // Establish any new values from their defaults
-    var defaultsObj = {};
-    var defaultsQueue = [];
+    this.keyList.forEach((key, index) => {
+      queue.push(restoreFromStorage(this, key, defaults[key]));
+      delete defaults[key];
+    });
+
     var newKeys = Object.keys(defaults);
     newKeys.forEach((key, index) => {
-      if (typeof defaults[key] === 'function') {
-        defaultsQueue.push(
-          defaults[key]()
-            .then((value) => {
-              defaultsObj[key] = value;
-            }
-          )
-        );
-      } else {
-        defaultsObj[key] = defaults[key];
-      }
+      queue.push(restoreFromDefault(this, key, defaults[key]));
     });
 
-    // Do a mixin setState on all default values to get them into storage
-    if (newKeys.length > 0) {
-      console.log("adding to keyList: ", newKeys);
-      this.keyList = this.keyList.concat(newKeys);
-      queue.push(
-        this.put(this.keyListKey, this.keyList)
-      );
-      queue.push(
-        Promise.all(defaultsQueue)
-          .then(()=>{
-            console.log("restore saves state for: ", Object.keys(defaultsObj));
-            this.setState(defaultsObj);
-          })
-      );
-    }
-
-    return Promise.all(queue);
+    return Promise.all(queue)
+      .then(() => {
+        queue = [];
+        if (keysUpdated)
+          queue.push(this.put(this.keyListKey, this.keyList));
+        if (newState !== {})
+          queue.push(super.setState(newState));
+        return Promise.all(queue);
+      });
   }
 
   /* The mixin's setState implementation sits between the Component and the
