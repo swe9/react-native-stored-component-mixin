@@ -127,7 +127,11 @@ export default StoredComponentMixin = (superclass) => class extends superclass {
   async get(key) {
     try {
       let value = await AsyncStorage.getItem(key);
-      return JSON.parse(value);
+      try { 
+        return JSON.parse(value) 
+      } catch (error) { 
+        return value 
+      }
     } catch (error) {
       console.log("Retrieval Error: ", error, ' for ', key);
     }
