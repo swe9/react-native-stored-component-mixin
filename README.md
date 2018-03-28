@@ -1,7 +1,7 @@
 # react-native-stored-component-mixin
-##Transparently add AsyncStorage to a React Native Component
+## Transparently add AsyncStorage to a React Native Component
 
-There are several projects showing how to use AsyncStorage straight up, or to use a database interface to it.  This is a different concept where the goal is to hide the AsyncStorage details from the storage backed component as much as possible so you can get on with building the component itself rather than worrying about storage details.
+There are several projects showing how to use AsyncStorage straight up, or to use a database interface to it.  This is a different concept where the goal is to hide the AsyncStorage details from the storage backend component as much as possible so you can get on with building the component itself rather than worrying about storage details.
 
 The key concept is to use a mixin approach to insert a new setState() method between the component and the React Native implementation.  The intermediary handles all the storage requirements while the component just does its normal setState() thing.  Credit to the awesome [MixWith project](https://www.npmjs.com/package/mixwith) for showing the best way to do mixins with React Native, it works a charm here!  
 
